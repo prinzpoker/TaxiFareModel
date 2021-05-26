@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/lars/code/prinzpoker/TaxiFareModel/mlruns/1/cce675c749604ce3b683e84a373ae153/artifacts
+end_time: null
+entry_point_name: ''
+experiment_id: '1'
+lifecycle_stage: active
+name: ''
+run_id: cce675c749604ce3b683e84a373ae153
+run_uuid: cce675c749604ce3b683e84a373ae153
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1621950353290
+status: 1
+tags: []
+user_id: unknown
