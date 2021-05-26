@@ -35,7 +35,9 @@ class Trainer():
         self.y = y
 
     def set_pipeline(self, estimator):
-        """defines the pipeline as a class attribute"""
+        """set the pipeline"""
+        
+        print(f"\n--- Pipeline with {estimator.__class__.__name__} ---")
         
         # create distance pipeline
         dist_pipe = Pipeline([
@@ -63,25 +65,27 @@ class Trainer():
         self.pipeline = pipe
         return None
 
-    def run(self, estimator):
-        """set and train the pipeline"""
-        # Option: Include the if __main__ in here...
+    def cv(self):
+        """cross-validate the pipeline"""
         
-        self.set_pipeline(estimator)
-        #cv_results = cross_val_score(self.pipeline, self.X, self.y, scoring="neg_root_mean_squared_error", cv=5)
+        # CV always maximises the scoring function
+        # Thus, the score needs to be negated
         my_scorer = make_scorer(compute_rmse, greater_is_better=False)
-        print(cross_val_score(self.pipeline, self.X, self.y, scoring=my_scorer, cv=5))
-        
+        cv_rmse = abs(cross_val_score(self.pipeline, self.X, self.y, scoring=my_scorer, cv=5).mean())
+        print("cv rmse:", cv_rmse)
+        return cv_rmse
+    
+    def fit(self):
+        """fit the pipeline"""
         self.pipeline.fit(self.X, self.y)
-        return None
 
     def evaluate(self, X_test, y_test):
         """evaluates the pipeline on df_test and return the RMSE"""
         
         y_pred = self.pipeline.predict(X_test)
-        rmse = compute_rmse(y_pred, y_test)
-        print(rmse)
-        return rmse
+        test_rmse = compute_rmse(y_pred, y_test)
+        print("test rmse:", test_rmse)
+        return test_rmse
     
     @memoized_property
     def mlflow_client(self):
@@ -113,17 +117,13 @@ class Trainer():
 if __name__ == "__main__":
     
     # --- PREPARE THE DATA ---
-    # get data
+    # get the data
     df = get_data()
-    
-    # clean data
     df = clean_data(df)
-    
-    # set X and y
     X = df.drop("fare_amount", axis=1)
     y = df["fare_amount"]
     
-    # hold out
+    # do a hold-out
     X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.15)
     
     # --- TRAIN DIFFERENT MODELS ---
@@ -138,20 +138,27 @@ if __name__ == "__main__":
         # create the trainer
         trainer = Trainer(X_train, y_train)
         
-        # train
-        trainer.run(model)
+        # include the model into the pipeline
+        trainer.set_pipeline(model)
     
-        # evaluate
-        rmse = trainer.evaluate(X_val, y_val)
+        # cross-validate the pipeline
+        cv_rmse = trainer.cv()
+        
+        # fit the pipeline
+        trainer.fit()
+        
+        # evaluate the pipeline
+        test_rmse = trainer.evaluate(X_val, y_val)
     
         # store params
         student_name = "hlars"
         model_name = model.__class__.__name__
     
         # log the model
-        trainer.mlflow_log_param("student", student_name)
-        trainer.mlflow_log_param("model", model_name)
-        trainer.mlflow_log_metric("rmse", rmse)
+        # trainer.mlflow_log_param("student", student_name)
+        # trainer.mlflow_log_param("model", model_name)
+        # trainer.mlflow_log_metric("cv_rmse", cv_rmse)
+        # trainer.mlflow_log_metric("test_rmse", test_rmse)
     
         # save the model
         trainer.save_model()
